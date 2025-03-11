@@ -27,6 +27,52 @@ class MinMaxGUIHelper {
     }
 }
 
+class FogGUIHelper {
+    constructor(fog, backgroundColor) {
+        this.fog = fog;
+        this.backgroundColor = backgroundColor;
+        this._enabled = true;
+    }
+    get enabled() {
+        return this._enabled;
+    }
+    set enabled(value) {
+        this._enabled = value;
+        if (this._enabled) {
+            this.fog.near = 10; 
+            this.fog.far = 75;
+            this.backgroundColor.set(this.fog.color);
+            
+        } else {
+            this.fog.near = Infinity; // disable fog
+            this.fog.far = Infinity;
+            this.backgroundColor.copy(scene.background); // keep skybox
+                
+        }
+    }
+    get near() {
+        return this.fog.near;
+    }
+    set near(v) {
+        this.fog.near = v;
+        this.fog.far = Math.max(this.fog.far, v);
+    }
+    get far() {
+        return this.fog.far;
+    }
+    set far(v) {
+        this.fog.far = v;
+        this.fog.near = Math.min(this.fog.near, v);
+    }
+    get color() {
+        return `#${this.fog.color.getHexString()}`;
+    }
+    set color(hexString) {
+        this.fog.color.set(hexString);
+        if (this._enabled) this.backgroundColor.set(hexString);
+    }
+}
+
 class ColorGUIHelper {
     constructor(object, prop) {
         this.object = object;
@@ -44,7 +90,6 @@ function main() {
     const canvas = document.querySelector('#c');
     const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
     renderer.setSize( window.innerWidth, window.innerHeight );
-    //renderer.setClearColor(new THREE.Color('black'));
 
     // Camera setup
     const fov = 45;
@@ -60,6 +105,12 @@ function main() {
     controls.update();
 
     const scene = new THREE.Scene();
+
+    // Fog setup
+    const fogColor = new THREE.Color('#ADD8E6'); 
+    const fog = new THREE.Fog(fogColor, 10, 75);
+    scene.fog = fog;
+    scene.background = new THREE.Color(fogColor);
 
     // GUI setup
     const gui = new GUI();
@@ -158,6 +209,15 @@ function main() {
     scene.add(directionalLight.target);
 
     scene.add(ambientLight, hemisphereLight);
+
+    // Fog GUI controls
+    const fogGUIHelper = new FogGUIHelper(scene.fog, scene.background);
+    const folderFog = gui.addFolder('Fog');
+    folderFog.add(fogGUIHelper, 'enabled').name('Enabled');
+    folderFog.add(fogGUIHelper, 'near', 1, 100).name('Near').listen();
+    folderFog.add(fogGUIHelper, 'far', 1, 100).name('Far').listen();
+    folderFog.addColor(fogGUIHelper, 'color').name('Color');
+    folderFog.open();
 
     // Lighting GUI controls
     const folderA = gui.addFolder("Ambient Light");
