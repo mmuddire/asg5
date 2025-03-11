@@ -136,6 +136,14 @@ function main() {
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xFFFFFF, 1);
     const hemisphereLight = new THREE.HemisphereLight(0xB1E1FF, 0xB97A20, 1);
+    
+    // Directional Light
+    const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1);
+    directionalLight.position.set(0, 10, 0);
+    directionalLight.target.position.set(-5, 0, 0);
+    scene.add(directionalLight);
+    scene.add(directionalLight.target);
+
     scene.add(ambientLight, hemisphereLight);
 
     // Lighting GUI controls
@@ -149,6 +157,15 @@ function main() {
     folderH.addColor(new ColorGUIHelper(hemisphereLight, 'groundColor'), 'value').name('Ground Color');
     folderH.add(hemisphereLight, 'intensity', 0, 5, 0.01).name('Intensity');
     folderH.open();
+
+    // Directional Light GUI controls
+    const folderD = gui.addFolder("Directional Light");
+    folderD.addColor(new ColorGUIHelper(directionalLight, 'color'), 'value').name('Color');
+    folderD.add(directionalLight, 'intensity', 0, 5, 0.01).name('Intensity');
+    folderD.add(directionalLight.target.position, 'x', -10, 10).name('Target X');
+    folderD.add(directionalLight.target.position, 'z', -10, 10).name('Target Z');
+    folderD.add(directionalLight.target.position, 'y', 0, 10).name('Target Y');
+    folderD.open();
 
     // Animation loop
     function animate(time) {
