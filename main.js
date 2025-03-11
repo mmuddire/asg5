@@ -43,7 +43,8 @@ class ColorGUIHelper {
 function main() {
     const canvas = document.querySelector('#c');
     const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
-    renderer.setClearColor(new THREE.Color('black'));
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    //renderer.setClearColor(new THREE.Color('black'));
 
     // Camera setup
     const fov = 45;
@@ -75,8 +76,20 @@ function main() {
         camera.updateProjectionMatrix();
     }
 
+    //skybox
+    const loaderSky = new THREE.CubeTextureLoader();
+        const textureSky = loaderSky.load([
+            'resources/sky cubemap/left.jpg',
+            'resources/sky cubemap/right.jpg',
+            'resources/sky cubemap/top.jpg',
+            'resources/sky cubemap/bottom.jpg',
+            'resources/sky cubemap/back.jpg',
+            'resources/sky cubemap/front.jpg',
+        ]);
+        scene.background = textureSky;
+
     // Floor
-    const planeSize = 40;
+    const planeSize = 200;
     const loader = new THREE.TextureLoader();
     const texture = loader.load('https://threejs.org/manual/examples/resources/images/checker.png');
     texture.colorSpace = THREE.SRGBColorSpace;
