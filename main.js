@@ -113,6 +113,8 @@ class ColorGUIHelper {
     }
 }
 
+const labels = []; // Store all billboard labels
+
 function main() {
     const canvas = document.querySelector('#c');
     const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
@@ -134,7 +136,6 @@ function main() {
     controls.target.set(0, 5, 0);
     controls.update();
 
-    
     // Fog setup
     const fogColor = new THREE.Color('#ADD8E6'); 
     const fog = new THREE.Fog(fogColor, 10, 75);
@@ -270,10 +271,10 @@ function main() {
     const castle = new THREE.Group();
 
     // Towers
-    castle.add(createTower(20, [-45, 0, -45]));
-    castle.add(createTower(20, [45, 0, -45]));
-    castle.add(createTower(20, [45, 0, 45]));
-    castle.add(createTower(20, [-45, 0, 45]));
+    castle.add(createTower(20, [-45, 0, -45], "North-West Tower"));
+    castle.add(createTower(20, [45, 0, -45], "North-East Tower"));
+    castle.add(createTower(20, [45, 0, 45], "South-East Tower"));
+    castle.add(createTower(20, [-45, 0, 45], "South-West Tower"));
     scene.add(castle);
 
      // Walls
@@ -303,6 +304,11 @@ function main() {
     keepRoof.castShadow = true;
     castle.add(keepRoof);
 
+    const keepLabel = createLabel("Main Keep", 40);
+    keepLabel.position.set(-30, 29, 0); // Position above keep
+    castle.add(keepLabel);
+    labels.push(keepLabel);
+
     // statue
     const statue = new THREE.Mesh(
         new THREE.CylinderGeometry(4, 6, 2.5, 6),
@@ -312,14 +318,19 @@ function main() {
     statue.castShadow = true;
     castle.add(statue);
 
-     // Sphere 
-     const sphereRadius = 3;
-     const sphereGeo = new THREE.SphereGeometry(sphereRadius, 32, 16);
-     const sphereMat = new THREE.MeshPhongMaterial({ color: '#8c65db' });
-     const mesh2 = new THREE.Mesh(sphereGeo, sphereMat);
-     mesh2.position.set(0, sphereRadius + 2.5, 0);
-     mesh2.castShadow = true;
-     castle.add(mesh2);
+    // Sphere 
+    const sphereRadius = 3;
+    const sphereGeo = new THREE.SphereGeometry(sphereRadius, 32, 16);
+    const sphereMat = new THREE.MeshPhongMaterial({ color: '#8c65db' });
+    const mesh2 = new THREE.Mesh(sphereGeo, sphereMat);
+    mesh2.position.set(0, sphereRadius + 2.5, 0);
+    mesh2.castShadow = true;
+    castle.add(mesh2);
+
+    const statueLabel = createLabel("Statue", 40);
+    statueLabel.position.set(0, 12, 0); // Position above keep
+    castle.add(statueLabel);
+    labels.push(statueLabel);
 
     // Courtyard Pool
     
@@ -379,7 +390,7 @@ function main() {
     directionalLight.shadow.camera.near = 0.5;
     directionalLight.shadow.camera.far = 100;
     directionalLight.position.set(0, 20, 0);
-    directionalLight.target.position.set(-5, 0, 0);
+    directionalLight.target.position.set(-15, 0, 0);
     scene.add(directionalLight);
     scene.add(directionalLight.target);
 
@@ -419,6 +430,19 @@ function main() {
     folderD.add(directionalLight.target.position, 'y', 0, 10).name('Target Y');
     folderD.open();
 
+    // Billboard controls
+    const billboardControls = {
+        showLabels: true
+    };
+
+    const folderBillboard = gui.addFolder('Billboards');
+    folderBillboard.add(billboardControls, 'showLabels')
+        .name('Visible')
+        .onChange(value => {
+            labels.forEach(label => label.visible = value);
+        });
+    folderBillboard.open();
+
     // Add GUI controls for waves
     const folderWater = gui.addFolder('Water Waves');
     folderWater.add(waveParams, 'speed', 0.1, 5.0).name('Speed');
@@ -440,6 +464,12 @@ function main() {
         
         cube.rotation.x = time;
         cube.rotation.y = time * 0.5;
+
+        scene.traverse(obj => {
+            if (obj.isSprite) {
+                obj.lookAt(camera.position);
+            }
+        });
         
         if (resizeRendererToDisplaySize(renderer)) {
             camera.aspect = canvas.clientWidth / canvas.clientHeight;
@@ -453,8 +483,58 @@ function main() {
     requestAnimationFrame(animate);
 }
 
+function makeLabelCanvas(baseWidth, size, name) {
+    const borderSize = 2;
+    const ctx = document.createElement('canvas').getContext('2d');
+    const font = `${size}px bold sans-serif`;
+    ctx.font = font;
+    
+    // Measure text width
+    const textWidth = ctx.measureText(name).width;
+    const width = baseWidth + borderSize * 2;
+    const height = size + borderSize * 2;
+    
+    ctx.canvas.width = width;
+    ctx.canvas.height = height;
+    ctx.font = font;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    
+    // Background
+    ctx.fillStyle = 'rgba(158, 13, 134, 0.7)';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Text
+    ctx.fillStyle = 'black';
+    const scaleFactor = Math.min(1, baseWidth / textWidth);
+    ctx.translate(width/2, height/2);
+    ctx.scale(scaleFactor, 1);
+    ctx.fillText(name, 0, 0);
+    
+    return ctx.canvas;
+}
+
+function createLabel(name, fontSize = 32) {
+    const canvas = makeLabelCanvas(40, fontSize, name);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.minFilter = THREE.LinearFilter;
+	texture.wrapS = THREE.ClampToEdgeWrapping;
+	texture.wrapT = THREE.ClampToEdgeWrapping;
+    
+    const material = new THREE.SpriteMaterial({ 
+        map: texture,
+        transparent: true
+    });
+    
+    const sprite = new THREE.Sprite(material);
+    const scale = 0.15; // Adjust this value to change label size
+    sprite.scale.set(canvas.width * scale, canvas.height * scale, 1);
+    
+    return sprite;
+}
+
 // Castle Construction Functions
-function createTower(height = 15, position = [0, 0, 0]) {
+function createTower(height = 15, position = [0, 0, 0], name = "Tower") {
     const group = new THREE.Group();
     
     // Main tower structure
@@ -487,6 +567,11 @@ function createTower(height = 15, position = [0, 0, 0]) {
         battlement.castShadow = true;
         group.add(battlement);
     }
+
+    const label = createLabel(name);
+    label.position.y = height + 9; // Position above roof
+    group.add(label);
+    labels.push(label);
 
     group.position.set(...position);
     return group;
