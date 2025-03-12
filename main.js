@@ -514,7 +514,7 @@ function makeLabelCanvas(baseWidth, size, name) {
     return ctx.canvas;
 }
 
-function createLabel(name, fontSize = 32) {
+function createLabel(name, fontSize = 40) {
     const canvas = makeLabelCanvas(40, fontSize, name);
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
