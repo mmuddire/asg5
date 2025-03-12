@@ -4,6 +4,33 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
 
+const waterVertexShader = `
+    uniform float time;
+    uniform float waveHeight;
+    uniform float frequency;
+    
+    varying vec2 vUv;
+    
+    void main() {
+        vUv = uv;
+        vec3 pos = position;
+        float wave = sin(pos.x * frequency + time) * cos(pos.z * frequency + time) * waveHeight;
+        pos.y += wave;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+    }
+`;
+
+const waterFragmentShader = `
+    varying vec2 vUv;
+    uniform vec3 waterColor;
+    
+    void main() {
+        float fresnel = pow(1.0 - dot(vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0)), 2.0);
+        vec3 color = mix(waterColor, vec3(1.0), fresnel * 0.5);
+        gl_FragColor = vec4(color, 0.8);
+    }
+`;
+
 class MinMaxGUIHelper {
     constructor(obj, minProp, maxProp, minDif) {
         this.obj = obj;
@@ -46,8 +73,7 @@ class FogGUIHelper {
         } else {
             this.fog.near = Infinity; // disable fog
             this.fog.far = Infinity;
-            this.backgroundColor.copy(scene.background); // keep skybox
-                
+            this.backgroundColor.copy(scene.background); // keep skybox     
         }
     }
     get near() {
@@ -90,6 +116,8 @@ function main() {
     const canvas = document.querySelector('#c');
     const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
     renderer.setSize( window.innerWidth, window.innerHeight );
+    //create scene
+    const scene = new THREE.Scene();
 
     // Camera setup
     const fov = 45;
@@ -104,8 +132,6 @@ function main() {
     controls.target.set(0, 5, 0);
     controls.update();
 
-    const scene = new THREE.Scene();
-    
     // Fog setup
     const fogColor = new THREE.Color('#ADD8E6'); 
     const fog = new THREE.Fog(fogColor, 10, 75);
@@ -126,6 +152,14 @@ function main() {
     function updateCamera() {
         camera.updateProjectionMatrix();
     }
+
+    //wave setup
+    let waveTime = 0;
+    const waveParams = {
+        speed: 1.0,
+        height: 0.5,
+        frequency: 2.0
+    };
 
     // Floor
     const planeSize = 100;
@@ -256,6 +290,7 @@ function main() {
      castle.add(mesh2);
 
     // Courtyard Pool
+    
     const pool = new THREE.Mesh(
         new THREE.TorusGeometry(12, 1, 20, 50),
         new THREE.MeshPhongMaterial({ color: 0x0099FF })
@@ -263,6 +298,25 @@ function main() {
     pool.rotation.x = Math.PI / 2;
     pool.position.set(22, 1, -22);
     castle.add(pool);
+
+    const waterGeometry = new THREE.CircleGeometry(12, 64);
+    const waterMaterial = new THREE.ShaderMaterial({
+        vertexShader: waterVertexShader,
+        fragmentShader: waterFragmentShader,
+        uniforms: {
+            time: { value: 0 },
+            waveHeight: { value: waveParams.height },
+            frequency: { value: waveParams.frequency },
+            waterColor: { value: new THREE.Color(0x0099FF) }
+        },
+        transparent: true,
+        side: THREE.DoubleSide
+    });
+
+    const waves = new THREE.Mesh(waterGeometry, waterMaterial);
+    waves.rotation.x = -Math.PI / 2;
+    waves.position.set(22, 2, -22); // Slightly raised position
+    castle.add(waves);
 
      //skybox
     const loaderSky = new THREE.CubeTextureLoader();
@@ -319,9 +373,24 @@ function main() {
     folderD.add(directionalLight.target.position, 'y', 0, 10).name('Target Y');
     folderD.open();
 
+    // Add GUI controls for waves
+    const folderWater = gui.addFolder('Water Waves');
+    folderWater.add(waveParams, 'speed', 0.1, 5.0).name('Speed');
+    folderWater.add(waveParams, 'height', 0.1, 2.0).name('Height').onChange(v => {
+        waterMaterial.uniforms.waveHeight.value = v;
+    });
+    folderWater.add(waveParams, 'frequency', 0.5, 5.0).name('Frequency').onChange(v => {
+        waterMaterial.uniforms.frequency.value = v;
+    });
+    folderWater.close();
+
     // Animation loop
     function animate(time) {
         time *= 0.001;
+
+        // Update waves
+        waveTime += time * waveParams.speed;
+        waterMaterial.uniforms.time.value = waveTime;
         
         cube.rotation.x = time;
         cube.rotation.y = time * 0.5;
