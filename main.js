@@ -73,7 +73,8 @@ class FogGUIHelper {
         } else {
             this.fog.near = Infinity; // disable fog
             this.fog.far = Infinity;
-            this.backgroundColor.copy(scene.background); // keep skybox     
+            this.backgroundColor.copy(scene.background); // keep skybox
+                
         }
     }
     get near() {
@@ -115,6 +116,7 @@ class ColorGUIHelper {
 function main() {
     const canvas = document.querySelector('#c');
     const renderer = new THREE.WebGLRenderer({ antialias: true, canvas });
+    renderer.shadowMap.enabled = true;
     renderer.setSize( window.innerWidth, window.innerHeight );
     //create scene
     const scene = new THREE.Scene();
@@ -132,6 +134,7 @@ function main() {
     controls.target.set(0, 5, 0);
     controls.update();
 
+    
     // Fog setup
     const fogColor = new THREE.Color('#ADD8E6'); 
     const fog = new THREE.Fog(fogColor, 10, 75);
@@ -172,6 +175,7 @@ function main() {
         })
     );
     floor.rotation.x = Math.PI * -0.5;
+    floor.receiveShadow = true;
     scene.add(floor);
 
     const planters = new THREE.Group();
@@ -182,11 +186,15 @@ function main() {
     const cubeMat = new THREE.MeshPhongMaterial({ color: '#331e06' });
     const planter1 = new THREE.Mesh(cubeGeo, cubeMat);
     planter1.position.set(-20, cubeSize / 2, 15);
+    planter1.castShadow = true;
+    planter1.receiveShadow = true;
     planters.add(planter1);
 
     // planter2
     const planter2 = new THREE.Mesh(cubeGeo, cubeMat);
     planter2.position.set(-20, cubeSize / 2, -15);
+    planter2.castShadow = true;
+    planter2.receiveShadow = true;
     planters.add(planter2);
 
     //3d tulips
@@ -197,6 +205,12 @@ function main() {
         objLoader.load('resources/tulips/model.obj', root => {
             root.position.set(-20, 5.5, 15);
             root.scale.set(3, 3, 3);
+            root.traverse(child => {
+                if (child.isMesh) {
+                  child.castShadow = true;
+                  child.receiveShadow = true;
+                }
+              });
             planters.add(root);
         });
     });
@@ -208,6 +222,12 @@ function main() {
         objLoader.load('resources/tulips/model.obj', root => {
             root.position.set(-20, 5.5, -15);
             root.scale.set(3, 3, 3);
+            root.traverse(child => {
+                if (child.isMesh) {
+                  child.castShadow = true;
+                  child.receiveShadow = true;
+                }
+              });
             planters.add(root);
         });
     });
@@ -223,6 +243,8 @@ function main() {
     );
     //cube.position.y = 1;
     cube.position.set(30, 1.5, 17);
+    cube.castShadow = true;
+    cube.receiveShadow = true;
     scene.add(cube);
 
     // 3D Tree
@@ -233,6 +255,12 @@ function main() {
         objLoader.load('resources/tree/model.obj', root => {
             root.position.set(-10, 7.5, -27);
             root.scale.set(2, 2, 2);
+            root.traverse(child => {
+                if (child.isMesh) {
+                  child.castShadow = true;
+                  child.receiveShadow = true;
+                }
+              });
             scene.add(root);
         });
     });
@@ -261,6 +289,7 @@ function main() {
     );
     keep.position.y = 7.5;
     keep.position.x = -30;
+    keep.castShadow = true;
     castle.add(keep);
 
     // Keep Roof
@@ -271,6 +300,7 @@ function main() {
     keepRoof.position.y = 20;
     keepRoof.position.x = -30;
     //keepRoof.position.set(20, -30, 0);
+    keepRoof.castShadow = true;
     castle.add(keepRoof);
 
     // statue
@@ -279,6 +309,7 @@ function main() {
         new THREE.MeshPhongMaterial({ color: 0x212020 })
     );
     statue.position.set(0, 1.25, 0);
+    statue.castShadow = true;
     castle.add(statue);
 
      // Sphere 
@@ -287,6 +318,7 @@ function main() {
      const sphereMat = new THREE.MeshPhongMaterial({ color: '#8c65db' });
      const mesh2 = new THREE.Mesh(sphereGeo, sphereMat);
      mesh2.position.set(0, sphereRadius + 2.5, 0);
+     mesh2.castShadow = true;
      castle.add(mesh2);
 
     // Courtyard Pool
@@ -297,6 +329,7 @@ function main() {
     );
     pool.rotation.x = Math.PI / 2;
     pool.position.set(22, 1, -22);
+    pool.castShadow = true;
     castle.add(pool);
 
     const waterGeometry = new THREE.CircleGeometry(12, 64);
@@ -336,12 +369,25 @@ function main() {
     
     // Directional Light
     const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1);
-    directionalLight.position.set(0, 10, 0);
+    directionalLight.castShadow = true; // Enable shadow casting
+    directionalLight.shadow.mapSize.width = 1024; // Higher resolution
+    directionalLight.shadow.mapSize.height = 1024;
+    directionalLight.shadow.camera.left = -50; // Adjust these values
+    directionalLight.shadow.camera.right = 50;
+    directionalLight.shadow.camera.top = 50;
+    directionalLight.shadow.camera.bottom = -50;
+    directionalLight.shadow.camera.near = 0.5;
+    directionalLight.shadow.camera.far = 100;
+    directionalLight.position.set(0, 20, 0);
     directionalLight.target.position.set(-5, 0, 0);
     scene.add(directionalLight);
     scene.add(directionalLight.target);
 
     scene.add(ambientLight, hemisphereLight);
+
+    //shadow debugging
+    //const cameraHelperS = new THREE.CameraHelper(directionalLight.shadow.camera);
+    //scene.add(cameraHelperS);
 
     // Fog GUI controls
     const fogGUIHelper = new FogGUIHelper(scene.fog, scene.background);
@@ -368,8 +414,8 @@ function main() {
     const folderD = gui.addFolder("Directional Light");
     folderD.addColor(new ColorGUIHelper(directionalLight, 'color'), 'value').name('Color');
     folderD.add(directionalLight, 'intensity', 0, 5, 0.01).name('Intensity');
-    folderD.add(directionalLight.target.position, 'x', -10, 10).name('Target X');
-    folderD.add(directionalLight.target.position, 'z', -10, 10).name('Target Z');
+    folderD.add(directionalLight.target.position, 'x', -30, 30).name('Target X');
+    folderD.add(directionalLight.target.position, 'z', -30, 30).name('Target Z');
     folderD.add(directionalLight.target.position, 'y', 0, 10).name('Target Y');
     folderD.open();
 
@@ -417,6 +463,7 @@ function createTower(height = 15, position = [0, 0, 0]) {
         new THREE.MeshPhongMaterial({ color: 0x636b7a })
     );
     tower.position.y = height/2;
+    tower.castShadow = true;
     group.add(tower);
 
     // Roof
@@ -425,6 +472,7 @@ function createTower(height = 15, position = [0, 0, 0]) {
         new THREE.MeshPhongMaterial({ color: 0x8B4513 })
     );
     roof.position.y = height + 3;
+    roof.castShadow = true;
     group.add(roof);
 
     // Battlements
@@ -436,6 +484,7 @@ function createTower(height = 15, position = [0, 0, 0]) {
         battlement.position.y = height - 2;
         battlement.position.x = Math.cos(i * Math.PI/2) * 3.5;
         battlement.position.z = Math.sin(i * Math.PI/2) * 3.5;
+        battlement.castShadow = true;
         group.add(battlement);
     }
 
@@ -456,6 +505,8 @@ function createWall(length, height, position, rotation) {
     );
     wall.position.set(...position);
     wall.rotation.y = rotation;
+    wall.castShadow = true;
+    wall.receiveShadow = true;
     return wall;
 }
 
