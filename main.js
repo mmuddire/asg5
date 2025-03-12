@@ -95,7 +95,7 @@ function main() {
     const fov = 45;
     const aspect = 2;
     const near = 0.1;
-    const far = 100;
+    const far = 1000;
     const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
     camera.position.set(0, 10, 20);
 
@@ -105,7 +105,7 @@ function main() {
     controls.update();
 
     const scene = new THREE.Scene();
-
+    
     // Fog setup
     const fogColor = new THREE.Color('#ADD8E6'); 
     const fog = new THREE.Fog(fogColor, 10, 75);
@@ -127,53 +127,58 @@ function main() {
         camera.updateProjectionMatrix();
     }
 
-    //skybox
-    const loaderSky = new THREE.CubeTextureLoader();
-        const textureSky = loaderSky.load([
-            'resources/sky cubemap/left.jpg',
-            'resources/sky cubemap/right.jpg',
-            'resources/sky cubemap/top.jpg',
-            'resources/sky cubemap/bottom.jpg',
-            'resources/sky cubemap/back.jpg',
-            'resources/sky cubemap/front.jpg',
-        ]);
-        scene.background = textureSky;
-
     // Floor
-    const planeSize = 200;
-    const loader = new THREE.TextureLoader();
-    const texture = loader.load('https://threejs.org/manual/examples/resources/images/checker.png');
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.magFilter = THREE.NearestFilter;
-    texture.repeat.set(planeSize / 2, planeSize / 2);
+    const planeSize = 100;
 
     const floor = new THREE.Mesh(
         new THREE.PlaneGeometry(planeSize, planeSize),
         new THREE.MeshPhongMaterial({
-            map: texture,
+            color: '#66f26f',
             side: THREE.DoubleSide
         })
     );
     floor.rotation.x = Math.PI * -0.5;
     scene.add(floor);
 
-    // Normal cube
+    const planters = new THREE.Group();
+
+    // planter1
     const cubeSize = 4;
     const cubeGeo = new THREE.BoxGeometry(cubeSize, cubeSize, cubeSize);
-    const cubeMat = new THREE.MeshPhongMaterial({ color: '#8AC' });
-    const mesh = new THREE.Mesh(cubeGeo, cubeMat);
-    mesh.position.set(cubeSize + 1, cubeSize / 2, 0);
-    scene.add(mesh);
+    const cubeMat = new THREE.MeshPhongMaterial({ color: '#331e06' });
+    const planter1 = new THREE.Mesh(cubeGeo, cubeMat);
+    planter1.position.set(-20, cubeSize / 2, 15);
+    planters.add(planter1);
 
-    // Sphere 
-    const sphereRadius = 3;
-    const sphereGeo = new THREE.SphereGeometry(sphereRadius, 32, 16);
-    const sphereMat = new THREE.MeshPhongMaterial({ color: '#CA8' });
-    const mesh2 = new THREE.Mesh(sphereGeo, sphereMat);
-    mesh2.position.set(sphereRadius - 1, sphereRadius + 2, -9);
-    scene.add(mesh2);
+    // planter2
+    const planter2 = new THREE.Mesh(cubeGeo, cubeMat);
+    planter2.position.set(-20, cubeSize / 2, -15);
+    planters.add(planter2);
+
+    //3d tulips
+    new MTLLoader().load('resources/tulips/materials.mtl', mtl => {
+        mtl.preload();
+        const objLoader = new OBJLoader();
+        objLoader.setMaterials(mtl);
+        objLoader.load('resources/tulips/model.obj', root => {
+            root.position.set(-20, 5.5, 15);
+            root.scale.set(3, 3, 3);
+            planters.add(root);
+        });
+    });
+
+    new MTLLoader().load('resources/tulips/materials.mtl', mtl => {
+        mtl.preload();
+        const objLoader = new OBJLoader();
+        objLoader.setMaterials(mtl);
+        objLoader.load('resources/tulips/model.obj', root => {
+            root.position.set(-20, 5.5, -15);
+            root.scale.set(3, 3, 3);
+            planters.add(root);
+        });
+    });
+
+    scene.add(planters);
 
     // Rotating Cube
     const cubeTexture = new THREE.TextureLoader().load('https://threejs.org/manual/examples/resources/images/wall.jpg');
@@ -182,7 +187,8 @@ function main() {
         new THREE.BoxGeometry(2, 2, 2),
         new THREE.MeshPhongMaterial({ map: cubeTexture })
     );
-    cube.position.y = 1;
+    //cube.position.y = 1;
+    cube.position.set(30, 1.5, 17);
     scene.add(cube);
 
     // 3D Tree
@@ -191,15 +197,88 @@ function main() {
         const objLoader = new OBJLoader();
         objLoader.setMaterials(mtl);
         objLoader.load('resources/tree/model.obj', root => {
-            root.position.set(-7.5, 7.5, 0);
+            root.position.set(-10, 7.5, -27);
             root.scale.set(2, 2, 2);
             scene.add(root);
         });
     });
 
+    
+
+    const castle = new THREE.Group();
+
+    // Towers
+    castle.add(createTower(20, [-45, 0, -45]));
+    castle.add(createTower(20, [45, 0, -45]));
+    castle.add(createTower(20, [45, 0, 45]));
+    castle.add(createTower(20, [-45, 0, 45]));
+    scene.add(castle);
+
+     // Walls
+     castle.add(createWall(90, 10, [0, 5, -45], 0));
+     castle.add(createWall(90, 10, [0, 5, 45], 0));
+     castle.add(createWall(90, 10, [-45, 5, 0], Math.PI/2));
+     castle.add(createWall(90, 10, [45, 5, 0], Math.PI/2));
+
+     // Main Keep
+    const keep = new THREE.Mesh(
+        new THREE.BoxGeometry(10, 15, 20),
+        new THREE.MeshPhongMaterial({ color: 0xccbea7 })
+    );
+    keep.position.y = 7.5;
+    keep.position.x = -30;
+    castle.add(keep);
+
+    // Keep Roof
+    const keepRoof = new THREE.Mesh(
+        new THREE.ConeGeometry(12, 10, 8),
+        new THREE.MeshPhongMaterial({ color: 0x8B4513 })
+    );
+    keepRoof.position.y = 20;
+    keepRoof.position.x = -30;
+    //keepRoof.position.set(20, -30, 0);
+    castle.add(keepRoof);
+
+    // statue
+    const statue = new THREE.Mesh(
+        new THREE.CylinderGeometry(4, 6, 2.5, 6),
+        new THREE.MeshPhongMaterial({ color: 0x212020 })
+    );
+    statue.position.set(0, 1.25, 0);
+    castle.add(statue);
+
+     // Sphere 
+     const sphereRadius = 3;
+     const sphereGeo = new THREE.SphereGeometry(sphereRadius, 32, 16);
+     const sphereMat = new THREE.MeshPhongMaterial({ color: '#8c65db' });
+     const mesh2 = new THREE.Mesh(sphereGeo, sphereMat);
+     mesh2.position.set(0, sphereRadius + 2.5, 0);
+     castle.add(mesh2);
+
+    // Courtyard Pool
+    const pool = new THREE.Mesh(
+        new THREE.TorusGeometry(12, 1, 20, 50),
+        new THREE.MeshPhongMaterial({ color: 0x0099FF })
+    );
+    pool.rotation.x = Math.PI / 2;
+    pool.position.set(22, 1, -22);
+    castle.add(pool);
+
+     //skybox
+    const loaderSky = new THREE.CubeTextureLoader();
+    const textureSky = loaderSky.load([
+        'resources/sky cubemap/left.jpg',
+        'resources/sky cubemap/right.jpg',
+        'resources/sky cubemap/top.jpg',
+        'resources/sky cubemap/bottom.jpg',
+        'resources/sky cubemap/back.jpg',
+        'resources/sky cubemap/front.jpg',
+    ]);
+    scene.background = textureSky;
+
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xFFFFFF, 1);
-    const hemisphereLight = new THREE.HemisphereLight(0xB1E1FF, 0xB97A20, 1);
+    const hemisphereLight = new THREE.HemisphereLight(0xB1E1FF, 0x66f26f, 1);
     
     // Directional Light
     const directionalLight = new THREE.DirectionalLight(0xFFFFFF, 1);
@@ -257,6 +336,58 @@ function main() {
     }
 
     requestAnimationFrame(animate);
+}
+
+// Castle Construction Functions
+function createTower(height = 15, position = [0, 0, 0]) {
+    const group = new THREE.Group();
+    
+    // Main tower structure
+    const tower = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.5, 2.5, height, 12),
+        new THREE.MeshPhongMaterial({ color: 0x636b7a })
+    );
+    tower.position.y = height/2;
+    group.add(tower);
+
+    // Roof
+    const roof = new THREE.Mesh(
+        new THREE.ConeGeometry(4, 6, 8),
+        new THREE.MeshPhongMaterial({ color: 0x8B4513 })
+    );
+    roof.position.y = height + 3;
+    group.add(roof);
+
+    // Battlements
+    for(let i = 0; i < 4; i++) {
+        const battlement = new THREE.Mesh(
+            new THREE.BoxGeometry(1.5, 1.5, 1.5),
+            new THREE.MeshPhongMaterial({ color: 0x405680 })
+        );
+        battlement.position.y = height - 2;
+        battlement.position.x = Math.cos(i * Math.PI/2) * 3.5;
+        battlement.position.z = Math.sin(i * Math.PI/2) * 3.5;
+        group.add(battlement);
+    }
+
+    group.position.set(...position);
+    return group;
+}
+
+function createWall(length, height, position, rotation) {
+    const wallTexture = new THREE.TextureLoader().load('resources/stonewall.jpg');
+    wallTexture.colorSpace = THREE.SRGBColorSpace;
+    wallTexture.wrapS = THREE.RepeatWrapping;
+    wallTexture.wrapT = THREE.RepeatWrapping;
+    wallTexture.magFilter = THREE.NearestFilter;
+    wallTexture.repeat.set(9, 1);
+    const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(length, height, 4),
+        new THREE.MeshPhongMaterial({ map: wallTexture })
+    );
+    wall.position.set(...position);
+    wall.rotation.y = rotation;
+    return wall;
 }
 
 function resizeRendererToDisplaySize(renderer) {
