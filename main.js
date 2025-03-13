@@ -10,23 +10,35 @@ const waterVertexShader = `
     uniform float frequency;
     
     varying vec2 vUv;
+    varying vec3 vViewPosition;
     
     void main() {
         vUv = uv;
         vec3 pos = position;
         float wave = sin(pos.x * frequency + time) * cos(pos.z * frequency + time) * waveHeight;
         pos.y += wave;
+        vViewPosition = (modelViewMatrix * vec4(pos, 1.0)).xyz;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
     }
 `;
 
 const waterFragmentShader = `
+    uniform vec3 fogColor;
+    uniform float fogNear;
+    uniform float fogFar;
     varying vec2 vUv;
+    varying vec3 vViewPosition;
     uniform vec3 waterColor;
     
     void main() {
         float fresnel = pow(1.0 - dot(vec3(0.0, 1.0, 0.0), vec3(0.0, 1.0, 0.0)), 2.0);
         vec3 color = mix(waterColor, vec3(1.0), fresnel * 0.5);
+        
+        // Fog calculation
+        float depth = length(vViewPosition);
+        float fogFactor = smoothstep(fogNear, fogFar, depth);
+        color = mix(color, fogColor, fogFactor);
+        
         gl_FragColor = vec4(color, 0.8);
     }
 `;
@@ -351,18 +363,22 @@ function main() {
             time: { value: 0 },
             waveHeight: { value: waveParams.height },
             frequency: { value: waveParams.frequency },
-            waterColor: { value: new THREE.Color(0x0099FF) }
+            waterColor: { value: new THREE.Color(0x0099FF) },
+            fogColor: { value: scene.fog.color },
+            fogNear: { value: scene.fog.near },
+            fogFar: { value: scene.fog.far }
         },
         transparent: true,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide,
+        fog: true
     });
 
     const waves = new THREE.Mesh(waterGeometry, waterMaterial);
     waves.rotation.x = -Math.PI / 2;
-    waves.position.set(22, 2, -22); // Slightly raised position
+    waves.position.set(22, 2, -22);
     castle.add(waves);
 
-     //skybox
+    //skybox
     const loaderSky = new THREE.CubeTextureLoader();
     const textureSky = loaderSky.load([
         'resources/sky cubemap/left.jpg',
@@ -458,6 +474,10 @@ function main() {
     function animate(time) {
         time *= 0.001;
 
+        waterMaterial.uniforms.fogColor.value = scene.fog.color;
+        waterMaterial.uniforms.fogNear.value = scene.fog.near;
+        waterMaterial.uniforms.fogFar.value = scene.fog.far;
+        
         // Update waves
         waveTime += time * waveParams.speed;
         waterMaterial.uniforms.time.value = waveTime;
